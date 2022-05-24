@@ -47,7 +47,7 @@ async function run() {
       res.send(tools);
     });
 
-    app.post("/tool", async (req, res) => {
+    app.post("/tool", verifyJWT, async (req, res) => {
       const newProduct = req.body;
       console.log("adding new Product", newProduct);
       const result = await toolCollection.insertOne(newProduct);
