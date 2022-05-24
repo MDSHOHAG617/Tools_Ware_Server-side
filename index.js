@@ -47,10 +47,21 @@ async function run() {
       res.send(tools);
     });
 
+    app.get("/tool", verifyJWT, async (req, res) => {
+      const order = await orderCollection.find().toArray();
+      res.send(order);
+    });
+
     app.post("/tool", verifyJWT, async (req, res) => {
       const newProduct = req.body;
-      console.log("adding new Product", newProduct);
       const result = await toolCollection.insertOne(newProduct);
+      res.send(result);
+    });
+
+    app.delete("/tool/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+      const result = await toolCollection.deleteOne(filter);
       res.send(result);
     });
 
