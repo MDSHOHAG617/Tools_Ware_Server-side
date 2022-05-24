@@ -3,6 +3,7 @@ const app = express();
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const { use } = require("express/lib/router");
 const { is } = require("express/lib/request");
@@ -39,6 +40,7 @@ async function run() {
     const toolCollection = client.db("tools-ware").collection("tools");
     const orderCollection = client.db("tools-ware").collection("orders");
     const userCollection = client.db("tools-ware").collection("users");
+    const paymentCollection = client.db("tools-ware").collection("payments");
 
     app.get("/tool", async (req, res) => {
       const query = {};
@@ -65,6 +67,18 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const order = req.body;
+      const price = order.price;
+      const amount = price * 100;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({ clientSecret: paymentIntent.client_secret });
+    });
+
     app.get("/user", verifyJWT, async (req, res) => {
       const users = await userCollection.find().toArray();
       res.send(users);
@@ -75,6 +89,24 @@ async function run() {
       const user = await userCollection.findOne({ email: email });
       const isAdmin = user.role === "admin";
       res.send({ admin: isAdmin });
+    });
+
+    app.patch("/order/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const payment = req.body;
+      const filter = { _id: ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          paid: true,
+          transactionId: payment.transactionId,
+        },
+      };
+      const result = await paymentCollection.insertOne(payment);
+      const updatedPayment = await orderCollection.updateOne(
+        filter,
+        updatedDoc
+      );
+      res.send(updatedDoc);
     });
 
     app.put("/user/admin/:email", verifyJWT, async (req, res) => {
@@ -131,6 +163,13 @@ async function run() {
       }
       // console.log("Auth Header", authorization);
       // const authorization = req.headers.authorization;
+    });
+
+    app.get("/order/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const order = await orderCollection.findOne(query);
+      res.send(order);
     });
 
     app.post("/order", async (req, res) => {
