@@ -1,8 +1,9 @@
 {
   "name": "toolware-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "description",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node index.js",
     "start-dev": "nodemon index.js",
